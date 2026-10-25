@@ -1,0 +1,77 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "调试 standard_robot (J-Link)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/vscode-debug/standard_robot.elf",
+            "servertype": "openocd",
+            "configFiles": ["${workspaceFolder}/openocd_jlink.cfg"],
+            "device": "STM32F407IG",
+            "runToEntryPoint": "main",
+            "rtos": "FreeRTOS",
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 2
+            },
+            "svdFile": "C:/Users/bbq25/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/3.1.1/CMSIS/SVD/STM32F407.svd",
+            "preLaunchTask": "构建 standard_robot"
+        },
+        {
+            "name": "调试 standard_robot (OpenOCD J-Link)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/vscode-debug/standard_robot.elf",
+            "servertype": "openocd",
+            "configFiles": ["${workspaceFolder}/openocd_jlink.cfg"],
+            "device": "STM32F407IG",
+            "runToEntryPoint": "main",
+            "rtos": "FreeRTOS",
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 2
+            },
+            "svdFile": "C:/Users/bbq25/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/3.1.1/CMSIS/SVD/STM32F407.svd",
+            "preLaunchTask": "构建 standard_robot"
+        },
+        {
+            "name": "调试 standard_robot (CMSIS-DAP)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/vscode-debug/standard_robot.elf",
+            "servertype": "openocd",
+            "configFiles": ["${workspaceFolder}/openocd_dap.cfg"],
+            "device": "STM32F407IG",
+            "runToEntryPoint": "main",
+            "rtos": "FreeRTOS",
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 2
+            },
+            "svdFile": "C:/Users/bbq25/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/3.1.1/CMSIS/SVD/STM32F407.svd",
+            "preLaunchTask": "构建 standard_robot"
+        },
+        {
+            "name": "调试 standard_robot (无线 DAPLink)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/vscode-debug/standard_robot.elf",
+            "servertype": "openocd",
+            "configFiles": ["${workspaceFolder}/openocd_wireless_dap.cfg"],
+            "device": "STM32F407IG",
+            "runToEntryPoint": "main",
+            "rtos": "FreeRTOS",
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 1
+            },
+            "svdFile": "C:/Users/bbq25/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/3.1.1/CMSIS/SVD/STM32F407.svd",
+            "preLaunchTask": "构建 standard_robot"
+        }
+    ]
+}

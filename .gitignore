@@ -1,0 +1,50 @@
+# Duplicate files
+*(*)*
+
+# MATLAB files
+application/chassis/matlab_balance/slprj/
+*/slprj/
+*/codegen/
+*.prj
+
+# Keil v5 files
+*.bak
+*.lst
+*.lnp
+*.obj
+*.tmp
+*.TMP
+*.__i
+*.crf
+*.o
+*.d
+*.axf
+*.dep
+*.uvopt
+*.htm
+*.hsc
+~*
+*.map
+*uvgui*
+*.uvoptx
+*.sct
+*JLinkLog.txt
+*.dbgconf
+.vscode/tags
+*.hex
+*.lnk
+
+*.scvd
+*.iex
+*.ini
+# Local build outputs
+build/
+MDK-ARM/standard_tpye_c/
+
+# Python tool outputs
+tools/logs/
+tools/__pycache__/
+tools/.idea/
+**/__pycache__/
+*.pyc
+

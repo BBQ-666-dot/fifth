@@ -1,0 +1,23 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "vscode-debug",
+            "displayName": "standard_robot Debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/vscode-debug",
+            "toolchainFile": "${sourceDir}/cmake/arm-none-eabi-gcc.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "vscode-debug",
+            "displayName": "构建 standard_robot",
+            "configurePreset": "vscode-debug"
+        }
+    ]
+}

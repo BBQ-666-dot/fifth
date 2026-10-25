@@ -1,0 +1,80 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "配置 standard_robot",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--preset", "vscode-debug"],
+            "problemMatcher": []
+        },
+        {
+            "label": "构建 standard_robot",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "vscode-debug"],
+            "dependsOn": "配置 standard_robot",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "清理 standard_robot",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "vscode-debug", "--target", "clean"],
+            "problemMatcher": []
+        },
+        {
+            "label": "烧录 standard_robot (J-Link OpenOCD)",
+            "type": "process",
+            "command": "C:\\msys64\\mingw64\\bin\\openocd.exe",
+            "args": [
+                "-f", "openocd_jlink.cfg",
+                "-c", "init",
+                "-c", "reset init",
+                "-c", "flash write_image erase build/vscode-debug/standard_robot.hex",
+                "-c", "verify_image build/vscode-debug/standard_robot.hex",
+                "-c", "reset init",
+                "-c", "resume",
+                "-c", "shutdown"
+            ],
+            "dependsOn": "构建 standard_robot",
+            "problemMatcher": []
+        },
+        {
+            "label": "烧录 standard_robot (CMSIS-DAP OpenOCD)",
+            "type": "process",
+            "command": "C:\\msys64\\mingw64\\bin\\openocd.exe",
+            "args": [
+                "-f", "openocd_dap.cfg",
+                "-c", "init",
+                "-c", "reset init",
+                "-c", "flash write_image erase build/vscode-debug/standard_robot.hex",
+                "-c", "verify_image build/vscode-debug/standard_robot.hex",
+                "-c", "reset run",
+                "-c", "shutdown"
+            ],
+            "dependsOn": "构建 standard_robot",
+            "problemMatcher": []
+        },
+        {
+            "label": "烧录 standard_robot (无线 DAPLink OpenOCD)",
+            "type": "process",
+            "command": "C:\\msys64\\mingw64\\bin\\openocd.exe",
+            "args": [
+                "-f", "openocd_wireless_dap.cfg",
+                "-c", "init",
+                "-c", "reset init",
+                "-c", "flash write_image erase build/vscode-debug/standard_robot.hex",
+                "-c", "verify_image build/vscode-debug/standard_robot.hex",
+                "-c", "reset run",
+                "-c", "shutdown"
+            ],
+            "dependsOn": "构建 standard_robot",
+            "problemMatcher": []
+        }
+    ]
+}

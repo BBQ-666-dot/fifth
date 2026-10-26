@@ -30,6 +30,8 @@ History:
 
 Typical runs:
     python swd_yaw_plot.py
+    python swd_yaw_plot.py --imu-yaw
+    python swd_yaw_plot.py --imu-yaw --rate 50 --window 0
     python swd_yaw_plot.py --rate 50
     python swd_yaw_plot.py --window 0
     python swd_yaw_plot.py --cfg openocd_dap.cfg
@@ -76,6 +78,10 @@ def parse_args(argv=None):
         description="DAPLink/SWD live plot for chassis.yaw_delta and yaw rates")
     parser.add_argument("--angle", default="chassis.yaw_delta",
                         help="angle expression to plot in degrees")
+    parser.add_argument("--imu-yaw", action="store_true",
+                        help="shortcut: plot gimbal_direct.feedback_pos.yaw (IMU yaw)")
+    parser.add_argument("--unwrap", action="store_true",
+                        help="unwrap the angle for continuous plotting")
     parser.add_argument("--gimbal-wz", default=DEFAULT_GIMBAL_WZ,
                         help="gimbal actual yaw rate expression")
     parser.add_argument("--gimbal-cmd", default=DEFAULT_GIMBAL_CMD,
@@ -120,20 +126,17 @@ def parse_args(argv=None):
 
 
 def default_elf():
-    candidates = [
-        lw.PROJECT_DIR / "build" / "vscode-debug" / "standard_robot.elf",
-        lw.PROJECT_DIR / "MDK-ARM" / "standard_tpye_c" / "standard_tpye_c.axf",
-    ]
-    existing = [path for path in candidates if path.exists()]
-    if not existing:
-        return candidates[0]
-    return max(existing, key=lambda path: path.stat().st_mtime)
+    keil = lw.PROJECT_DIR / "MDK-ARM" / "standard_tpye_c" / "standard_tpye_c.axf"
+    cmake = lw.PROJECT_DIR / "build" / "vscode-debug" / "standard_robot.elf"
+    if keil.exists():
+        return keil
+    return cmake
 
 
-def default_csv_path():
+def default_csv_path(prefix="yaw_delta"):
     logs = TOOLS_DIR / "logs"
     logs.mkdir(parents=True, exist_ok=True)
-    return logs / time.strftime("yaw_delta_%Y%m%d_%H%M%S.csv")
+    return logs / time.strftime(f"{prefix}_%Y%m%d_%H%M%S.csv")
 
 
 def resolve_specs(args):
@@ -213,6 +216,9 @@ def main(argv=None):
         raise SystemExit("--window 不能小于 0")
     if args.wz:
         args.chassis_wz = args.wz
+    if args.imu_yaw:
+        args.angle = "gimbal_direct.feedback_pos.yaw"
+        args.unwrap = True
 
     specs = None
     if not args.demo:
@@ -224,7 +230,8 @@ def main(argv=None):
         return 0
 
     csv_path = None if args.no_csv else (Path(args.csv) if args.csv
-                                         else default_csv_path())
+                                         else default_csv_path(
+                                             "imu_yaw" if args.imu_yaw else "yaw_delta"))
     csv_handle = None
     csv_writer = None
     csv_rows = 0
@@ -255,26 +262,30 @@ def main(argv=None):
     view_start = 0
 
     fig, ax = plt.subplots(figsize=(11, 5))
-    fig.canvas.manager.set_window_title("SWD yaw_delta / yaw rates")
+    fig.canvas.manager.set_window_title(
+        "SWD imu_yaw" if args.imu_yaw else "SWD yaw_delta / yaw rates")
     line_angle, = ax.plot([], [], color="#2f86cf", linewidth=1.4,
                           label=f"{args.angle} (deg)")
     ax.set_xlabel("time (s)")
-    ax.set_ylabel("yaw_delta (deg)")
+    ax.set_ylabel("imu_yaw (deg)" if args.imu_yaw else "yaw_delta (deg)")
     ax.grid(True, alpha=0.35)
     ax.legend(loc="upper left", fontsize=8)
 
-    ax_rate = ax.twinx()
-    line_gimbal, = ax_rate.plot([], [], color="#2dd4a7", linewidth=1.2,
-                                label=f"{args.gimbal_wz} (gimbal actual)")
-    line_gimbal_cmd, = ax_rate.plot([], [], color="#2dd4a7", linewidth=1.0,
-                                    linestyle="--", alpha=0.8,
-                                    label=f"{args.gimbal_cmd} (gimbal cmd)")
-    line_chassis_ref, = ax_rate.plot([], [], color="#f4c542", linewidth=1.2,
-                                     label=f"{args.chassis_wz} (chassis cmd)")
-    line_chassis_est, = ax_rate.plot([], [], color="#f2555a", linewidth=1.2,
-                                     label="chassis actual estimate")
-    ax_rate.set_ylabel("yaw rate (rad/s)")
-    ax_rate.legend(loc="upper right", fontsize=8)
+    ax_rate = None
+    line_gimbal = line_gimbal_cmd = line_chassis_ref = line_chassis_est = None
+    if not args.imu_yaw:
+        ax_rate = ax.twinx()
+        line_gimbal, = ax_rate.plot([], [], color="#2dd4a7", linewidth=1.2,
+                                    label=f"{args.gimbal_wz} (gimbal actual)")
+        line_gimbal_cmd, = ax_rate.plot([], [], color="#2dd4a7", linewidth=1.0,
+                                        linestyle="--", alpha=0.8,
+                                        label=f"{args.gimbal_cmd} (gimbal cmd)")
+        line_chassis_ref, = ax_rate.plot([], [], color="#f4c542", linewidth=1.2,
+                                         label=f"{args.chassis_wz} (chassis cmd)")
+        line_chassis_est, = ax_rate.plot([], [], color="#f2555a", linewidth=1.2,
+                                         label="chassis actual estimate")
+        ax_rate.set_ylabel("yaw rate (rad/s)")
+        ax_rate.legend(loc="upper right", fontsize=8)
 
     plt.ion()
     plt.show(block=False)
@@ -284,10 +295,16 @@ def main(argv=None):
     errors = 0
     prev_angle = None
     prev_sample_t = None
+    prev_unwrap = None
+    unwrapped_angle = 0.0
     chassis_est = 0.0
 
-    print("列: t(s)  yaw_delta(deg)  gimbal_wz  gimbal_cmd  "
-          "chassis_wz_ref  chassis_wz_est (rad/s)")
+    angle_label = "imu_yaw" if args.imu_yaw else "yaw_delta"
+    if ax_rate is not None:
+        print(f"列: t(s)  {angle_label}(deg)  gimbal_wz  gimbal_cmd  "
+              "chassis_wz_ref  chassis_wz_est (rad/s)")
+    else:
+        print(f"列: t(s)  {angle_label}(deg)")
 
     try:
         if not args.demo:
@@ -315,7 +332,22 @@ def main(argv=None):
                     time.sleep(1.0 / args.rate)
                     continue
 
-            if prev_angle is None:
+            if args.unwrap:
+                if prev_unwrap is None:
+                    unwrapped_angle = angle
+                else:
+                    delta_unwrap = angle - prev_unwrap
+                    while delta_unwrap > math.pi:
+                        delta_unwrap -= 2.0 * math.pi
+                    while delta_unwrap < -math.pi:
+                        delta_unwrap += 2.0 * math.pi
+                    unwrapped_angle += delta_unwrap
+                prev_unwrap = angle
+                angle = unwrapped_angle
+
+            if args.imu_yaw:
+                chassis_est = 0.0
+            elif prev_angle is None:
                 chassis_est = 0.0
             else:
                 dt_sample = t - prev_sample_t
@@ -368,21 +400,22 @@ def main(argv=None):
             view_chassis_est = hist_chassis_est[view_start:]
 
             line_angle.set_data(view_t, view_angle)
-            line_gimbal.set_data(view_t, view_gimbal)
-            line_gimbal_cmd.set_data(view_t, view_gimbal_cmd)
-            line_chassis_ref.set_data(view_t, view_chassis_ref)
-            line_chassis_est.set_data(view_t, view_chassis_est)
 
             ax.set_xlim(x0, x1)
             lo, hi = min(view_angle), max(view_angle)
             span = max(hi - lo, 1.0)
             ax.set_ylim(lo - 0.1 * span, hi + 0.1 * span)
 
-            rate_values = (view_gimbal + view_gimbal_cmd
-                           + view_chassis_ref + view_chassis_est)
-            rlo, rhi = min(rate_values), max(rate_values)
-            rspan = max(rhi - rlo, 0.5)
-            ax_rate.set_ylim(rlo - 0.1 * rspan, rhi + 0.1 * rspan)
+            if ax_rate is not None:
+                line_gimbal.set_data(view_t, view_gimbal)
+                line_gimbal_cmd.set_data(view_t, view_gimbal_cmd)
+                line_chassis_ref.set_data(view_t, view_chassis_ref)
+                line_chassis_est.set_data(view_t, view_chassis_est)
+                rate_values = (view_gimbal + view_gimbal_cmd
+                               + view_chassis_ref + view_chassis_est)
+                rlo, rhi = min(rate_values), max(rate_values)
+                rspan = max(rhi - rlo, 0.5)
+                ax_rate.set_ylim(rlo - 0.1 * rspan, rhi + 0.1 * rspan)
 
             try:
                 fig.canvas.draw_idle()
@@ -391,11 +424,14 @@ def main(argv=None):
                 pass
 
             if now - last_print >= 0.5:
-                print(f"t={t:7.2f}s  yaw_delta={angle_deg:7.2f} deg  "
-                      f"gimbal_wz={gimbal_wz:7.3f}  "
-                      f"gimbal_cmd={gimbal_cmd:7.3f}  "
-                      f"chassis_ref={chassis_wz:7.3f}  "
-                      f"chassis_est={chassis_est:7.3f} rad/s")
+                label = "imu_yaw" if args.imu_yaw else "yaw_delta"
+                text = f"t={t:7.2f}s  {label}={angle_deg:7.2f} deg"
+                if ax_rate is not None:
+                    text += (f"  gimbal_wz={gimbal_wz:7.3f}"
+                             f"  gimbal_cmd={gimbal_cmd:7.3f}"
+                             f"  chassis_ref={chassis_wz:7.3f}"
+                             f"  chassis_est={chassis_est:7.3f} rad/s")
+                print(text)
                 last_print = now
 
             if args.duration and t >= args.duration:

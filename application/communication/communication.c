@@ -22,13 +22,20 @@
 #include "CRC8_CRC16.h"
 #include "bsp_uart.h"
 #include "bsp_usart.h"
+#include "chassis_mecanum.h"
 #include "detect_task.h"
 #include "fifo.h"
 #include "gimbal.h"
+#include "IMU.h"
 #include "robot_param.h"
 #include "signal_generator.h"
 #include "uart2_typedef.h"
 #include "usb_debug.h"
+
+#include <math.h>
+#include <string.h>
+
+#define VOFA_JUSTFLOAT_ENABLE 1
 
 /*******************************************************************************/
 /* Macro Definitions                                                           */
@@ -321,6 +328,53 @@ void DataUnpack(void)
     }
 }
 
+#if (VOFA_JUSTFLOAT_ENABLE && (CHASSIS_TYPE == CHASSIS_MECANUM_WHEEL))
+static void VofaJustFloatSend(void)
+{
+    static uint32_t last_tick = 0;
+    static uint32_t last_sample_tick = 0;
+    static float last_yaw = 0.0f;
+    static float chassis_wz_est = 0.0f;
+
+    uint32_t now = HAL_GetTick();
+    if (now - last_tick < 10) {
+        return;
+    }
+    last_tick = now;
+
+    float yaw = GetGimbalDeltaYawMid();
+    float gimbal_wz = GetImuVelocity(AX_YAW);
+    float chassis_wz_ref = GetChassisReferenceWz();
+
+    if (last_sample_tick != 0 && now > last_sample_tick) {
+        float dt = (now - last_sample_tick) / 1000.0f;
+        float delta = yaw - last_yaw;
+        while (delta > (float)M_PI) {
+            delta -= 2.0f * (float)M_PI;
+        }
+        while (delta < -(float)M_PI) {
+            delta += 2.0f * (float)M_PI;
+        }
+        float raw = gimbal_wz - delta / dt;
+        chassis_wz_est += 0.6f * (raw - chassis_wz_est);
+    }
+    last_yaw = yaw;
+    last_sample_tick = now;
+
+    float data[4] = {
+        yaw * 57.2957795f,
+        gimbal_wz,
+        chassis_wz_ref,
+        chassis_wz_est,
+    };
+    static const uint8_t tail[4] = {0x00, 0x00, 0x80, 0x7f};
+    uint8_t frame[sizeof(data) + sizeof(tail)];
+    memcpy(frame, data, sizeof(data));
+    memcpy(frame + sizeof(data), tail, sizeof(tail));
+    UartSendTxMessage(&huart1, frame, sizeof(frame), 10);
+}
+#endif
+
 /*******************************************************************************/
 /* Uart2 Task Loop Function                                                    */
 /*     Uart2TaskLoop                                                           */
@@ -336,7 +390,11 @@ void Uart2TaskLoop(void)
 #elif __SELF_BOARD_ID == C_BOARD_BALANCE_GIMBAL
     Uart2CheckDurationAndSend(Gimbal);
 #elif __SELF_BOARD_ID == C_BOARD_DEFAULT
+#if (VOFA_JUSTFLOAT_ENABLE && (CHASSIS_TYPE == CHASSIS_MECANUM_WHEEL))
+    VofaJustFloatSend();
+#else
     Uart2CheckDurationAndSend(Test);
+#endif
 #endif
 
     DataUnpack();

@@ -293,9 +293,4 @@ inline int GetChassisSpinStateMEC(void)
 {
     return chassis.spin_flag;
 }
-
-float GetChassisReferenceWz(void)
-{
-    return chassis.reference.wz;
-}
 #endif

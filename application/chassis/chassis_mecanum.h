@@ -103,7 +103,5 @@ extern void ChassisSendCmd(void);
 
 extern inline int GetChassisSpinStateMEC(void);
 
-extern float GetChassisReferenceWz(void);
-
 #endif 
 #endif 

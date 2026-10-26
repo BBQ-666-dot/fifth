@@ -76,10 +76,12 @@ DEFAULT_CHASSIS_WZ = "chassis.reference.wz"
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="DAPLink/SWD live plot for chassis.yaw_delta and yaw rates")
-    parser.add_argument("--angle", default="chassis.yaw_delta",
-                        help="angle expression to plot in degrees")
+    parser.add_argument("--angle", default=None,
+                        help="angle expression; default: IMU yaw")
     parser.add_argument("--imu-yaw", action="store_true",
-                        help="shortcut: plot gimbal_direct.feedback_pos.yaw (IMU yaw)")
+                        help="deprecated: default mode is already IMU yaw")
+    parser.add_argument("--full", action="store_true",
+                        help="plot yaw_delta and gimbal/chassis yaw rates (old mode)")
     parser.add_argument("--unwrap", action="store_true",
                         help="unwrap the angle for continuous plotting")
     parser.add_argument("--gimbal-wz", default=DEFAULT_GIMBAL_WZ,
@@ -219,8 +221,14 @@ def main(argv=None):
         raise SystemExit("--window 不能小于 0")
     if args.wz:
         args.chassis_wz = args.wz
-    if args.imu_yaw:
-        args.angle = "gimbal_direct.feedback_pos.yaw"
+    if args.full:
+        args.imu_yaw = False
+        if args.angle is None:
+            args.angle = "chassis.yaw_delta"
+    else:
+        args.imu_yaw = True
+        if args.angle is None:
+            args.angle = "gimbal_direct.feedback_pos.yaw"
         args.unwrap = True
 
     specs = None

@@ -361,11 +361,12 @@ static void VofaJustFloatSend(void)
     last_yaw = yaw;
     last_sample_tick = now;
 
-    float data[4] = {
+    float data[5] = {
         yaw * 57.2957795f,
         gimbal_wz,
         chassis_wz_ref,
         chassis_wz_est,
+        GetImuAngle(AX_YAW) * 57.2957795f,
     };
     static const uint8_t tail[4] = {0x00, 0x00, 0x80, 0x7f};
     uint8_t frame[sizeof(data) + sizeof(tail)];

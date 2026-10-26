@@ -88,7 +88,7 @@ def read_csv(path):
 
     data = {
         "time_s": column("time_s", "time"),
-        "yaw_delta_deg": column("yaw_delta_deg", "yaw_delta"),
+        "yaw_delta_deg": column("yaw_delta_deg", "yaw_delta", "imu_yaw_deg"),
         "gimbal_wz_rad_s": column("gimbal_wz_rad_s"),
         "gimbal_cmd_rad_s": column("gimbal_cmd_rad_s"),
         "chassis_wz_ref_rad_s": column("chassis_wz_ref_rad_s", "wz_rad_s"),

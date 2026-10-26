@@ -144,10 +144,13 @@ def resolve_specs(args):
     elf = Path(args.elf) if args.elf else default_elf()
     specs = {
         "angle": lw.resolve_expression(gdb, elf, args.angle),
-        "gimbal_wz": lw.resolve_expression(gdb, elf, args.gimbal_wz),
-        "gimbal_cmd": lw.resolve_expression(gdb, elf, args.gimbal_cmd),
-        "chassis_wz": lw.resolve_expression(gdb, elf, args.chassis_wz),
     }
+    if not args.imu_yaw:
+        specs.update({
+            "gimbal_wz": lw.resolve_expression(gdb, elf, args.gimbal_wz),
+            "gimbal_cmd": lw.resolve_expression(gdb, elf, args.gimbal_cmd),
+            "chassis_wz": lw.resolve_expression(gdb, elf, args.chassis_wz),
+        })
     print(f"ELF: {elf}")
     for name, spec in specs.items():
         print(f"  {name}: " + lw.describe_spec(spec))
@@ -240,10 +243,13 @@ def main(argv=None):
             csv_path.parent.mkdir(parents=True, exist_ok=True)
             csv_handle = open(csv_path, "w", newline="", encoding="utf-8")
             csv_writer = csv.writer(csv_handle)
-            csv_writer.writerow([
-                "time_s", "yaw_delta_deg", "gimbal_wz_rad_s",
-                "gimbal_cmd_rad_s", "chassis_wz_ref_rad_s",
-                "chassis_wz_est_rad_s"])
+            if args.imu_yaw:
+                csv_writer.writerow(["time_s", "imu_yaw_deg"])
+            else:
+                csv_writer.writerow([
+                    "time_s", "yaw_delta_deg", "gimbal_wz_rad_s",
+                    "gimbal_cmd_rad_s", "chassis_wz_ref_rad_s",
+                    "chassis_wz_est_rad_s"])
             csv_handle.flush()
             print(f"CSV 历史记录: {csv_path}")
         except OSError as exc:
@@ -318,9 +324,14 @@ def main(argv=None):
             else:
                 try:
                     angle = read_scalar(client, specs["angle"])
-                    gimbal_wz = read_scalar(client, specs["gimbal_wz"])
-                    gimbal_cmd = read_scalar(client, specs["gimbal_cmd"])
-                    chassis_wz = read_scalar(client, specs["chassis_wz"])
+                    if args.imu_yaw:
+                        gimbal_wz = 0.0
+                        gimbal_cmd = 0.0
+                        chassis_wz = 0.0
+                    else:
+                        gimbal_wz = read_scalar(client, specs["gimbal_wz"])
+                        gimbal_cmd = read_scalar(client, specs["gimbal_cmd"])
+                        chassis_wz = read_scalar(client, specs["chassis_wz"])
                     errors = 0
                 except Exception as exc:
                     errors += 1
@@ -372,10 +383,13 @@ def main(argv=None):
             hist_chassis_est.append(chassis_est)
 
             if csv_writer is not None:
-                csv_writer.writerow([
-                    f"{t:.6f}", f"{angle_deg:.6f}", f"{gimbal_wz:.6f}",
-                    f"{gimbal_cmd:.6f}", f"{chassis_wz:.6f}",
-                    f"{chassis_est:.6f}"])
+                if args.imu_yaw:
+                    csv_writer.writerow([f"{t:.6f}", f"{angle_deg:.6f}"])
+                else:
+                    csv_writer.writerow([
+                        f"{t:.6f}", f"{angle_deg:.6f}", f"{gimbal_wz:.6f}",
+                        f"{gimbal_cmd:.6f}", f"{chassis_wz:.6f}",
+                        f"{chassis_est:.6f}"])
                 csv_rows += 1
                 if csv_rows % 20 == 0:
                     csv_handle.flush()
